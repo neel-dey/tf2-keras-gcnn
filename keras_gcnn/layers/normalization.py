@@ -82,8 +82,15 @@ class GBatchNorm(BatchNormalization):
                 K.tile(
                     K.expand_dims(w, -1), [1, n]), [-1])
 
-        self.repeated_gamma = repeat(self.gamma)
-        self.repeated_beta = repeat(self.beta)
+        if self.scale is True:
+            self.repeated_gamma = repeat(self.gamma)
+        else:
+            self.repeated_gamma = None
+
+        if self.center is True:
+            self.repeated_beta = repeat(self.beta)
+        else:
+            self.repeated_beta = None
 
         self.repeated_moving_mean = repeat(self.moving_mean)
         self.repeated_moving_variance = repeat(self.moving_variance)
