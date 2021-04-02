@@ -1,4 +1,4 @@
-import keras.backend as K
+import tensorflow.keras.backend as K
 import tensorflow as tf
 
 
@@ -37,3 +37,4 @@ def transform_filter_2d_nhwc(w, flat_indices, shape_info, validate_indices=True)
     transformed_w = tf.reshape(transformed_w, [n, n, ni * nti, no * nto])  # shape (n, n, ni * nti, no * nto)
 
     return transformed_w
+

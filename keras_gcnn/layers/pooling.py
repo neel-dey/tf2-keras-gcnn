@@ -1,6 +1,6 @@
-from keras import backend as K
-from keras.engine import Layer
-from keras.utils import get_custom_objects
+from tensorflow.keras import backend as K
+from tensorflow.keras.layers import Layer
+from tensorflow.keras.utils import get_custom_objects
 
 
 class GroupPool(Layer):
@@ -22,12 +22,24 @@ class GroupPool(Layer):
         return nti
 
     def call(self, x):
-        shape = K.shape(x)
-        stack_shape = K.stack([shape[0], shape[1], shape[2], shape[3] // self.nti, self.nti])
-        input_reshaped = K.reshape(x, stack_shape)
+        # TODO (neel): find out why this changed:
+
+        # shape = K.shape(x)
+        # stack_shape = K.stack([shape[0], shape[1], shape[2], shape[3] // self.nti, self.nti])
+        # input_reshaped = K.reshape(x, stack_shape)
+        # mean_per_group = K.mean(input_reshaped, -1)
+        # return mean_per_group
+
+        shape = x.get_shape().as_list()
+        input_reshaped = K.reshape(
+            x,
+            (-1, shape[1], shape[2], shape[3] // self.nti, self.nti),
+        )
         mean_per_group = K.mean(input_reshaped, -1)
+
         return mean_per_group
 
+    # TODO: model.summary() doesnt print op shape, fix
     def compute_output_shape(self, input_shape):
         return (input_shape[0], input_shape[1], input_shape[2], input_shape[3] // self.nti)
 
@@ -38,3 +50,4 @@ class GroupPool(Layer):
 
 
 get_custom_objects().update({'GroupPool': GroupPool})
+

@@ -7,12 +7,12 @@ from __future__ import print_function
 
 import numpy as np
 
-from keras import backend as K
-from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
-from keras.datasets import cifar10
-from keras.optimizers import Adam
-from keras.preprocessing.image import ImageDataGenerator
-from keras.utils import np_utils
+from tensorflow.keras import backend as K
+from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
+from tensorflow.keras.datasets import cifar10
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.utils import to_categorical
 from keras_gcnn.applications.densenetnew import GDenseNet
 
 batch_size = 16
@@ -52,8 +52,8 @@ testX = testX.astype('float32')
 trainX /= 255.
 testX /= 255.
 
-Y_train = np_utils.to_categorical(trainY, nb_classes)
-Y_test = np_utils.to_categorical(testY, nb_classes)
+Y_train = to_categorical(trainY, nb_classes)
+Y_test = to_categorical(testY, nb_classes)
 
 # Test equivariance by comparing outputs for rotated versions of same datapoint:
 res = model.predict(np.stack([trainX[123], np.rot90(trainX[123])]))

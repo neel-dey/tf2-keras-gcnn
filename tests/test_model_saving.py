@@ -5,13 +5,13 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-from keras import backend as K
-from keras import losses
-from keras import metrics
-from keras import optimizers
-from keras.models import save_model, load_model
-from keras.utils import np_utils
-from keras.utils.test_utils import keras_test
+from tensorflow.keras import backend as K
+from tensorflow.keras import losses
+from tensorflow.keras import metrics
+from tensorflow.keras import optimizers
+from tensorflow.keras.models import save_model, load_model
+from tensorflow.keras.utils import to_categorical
+# from keras.utils.test_utils import keras_test  # TODO: deal with this
 from keras_gcnn.applications.densenetnew import GDenseNet
 
 skipif_no_tf_gpu = pytest.mark.skipif(
@@ -19,7 +19,8 @@ skipif_no_tf_gpu = pytest.mark.skipif(
     reason='Requires TensorFlow backend and a GPU')
 
 
-@keras_test
+# @keras_test  # TODO: make sure this works
+
 def test_functional_model_saving():
     img_rows, img_cols = 32, 32
     img_channels = 3
@@ -44,7 +45,7 @@ def test_functional_model_saving():
                   metrics=[metrics.categorical_accuracy])
     x = np.random.random((1, 32, 32, 3))
     y = np.random.randint(0, 10, 1)
-    y = np_utils.to_categorical(y, 10)
+    y = to_categorical(y, 10)
     model.train_on_batch(x, y)
 
     out = model.predict(x)

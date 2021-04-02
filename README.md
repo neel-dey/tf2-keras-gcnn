@@ -1,9 +1,23 @@
+## Tensorflow 2 / tf.keras port for keras-gcnn
+A tf.keras port of keras-gcnn, a library for `p4` and `p4m`-equivariant networks. Includes some minor bug fixes for group batch normalization (correctly handling train/test modes, making affine scaling and shifting optional). Depends on [tf2-GrouPy](https://github.com/neel-dey/tf2-GrouPy).
+
+Currently, the primary functionality including the `GConv2D`, `GBatchNorm`, and `GroupPool` layers work. The remaining low-priority tasks include:
+1. Transposed GConv support. (side note: you could just use UpSampling layers instead)
+2. Updating the tests.
+3. Updating gdensenet to tf keras.
+
+If there's interest in these, please open an issue.
+
+To install, run `pip install git+https://github.com/neel-dey/tf2-GrouPy#egg=GrouPy -e git+https://github.com/neel-dey/tf-keras-gcnn.git#egg=keras_gcnn`.
+
+Original README follows below,
+
 # Group-Equivariant Convolutional Neural networks for Keras: keras_gcnn
 [![Python 3.6](https://img.shields.io/badge/python-3.6-blue.svg)](https://www.python.org/downloads/release/python-360/)
 
 Straight-forward keras implementations for 90-degree roto-reflections equivariant CNNs. See a [working example](https://github.com/basveeling/keras-gcnn/blob/master/examples/g_densnet_cifar.py).
 
-Install: `pip install git+https://github.com/nom/GrouPy#egg=GrouPy -e git+https://github.com/basveeling/keras-gcnn.git#egg=keras_gcnn`
+Install: `pip install git+https://github.com/neel-dey/tf2-GrouPy#egg=GrouPy -e git+https://github.com/neel-dey/tf-keras-gcnn.git#egg=keras_gcnn`
 
 Requires python 3, up to date keras and a tensorflow backend.
 Please report any problems in the issues.

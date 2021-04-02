@@ -1,8 +1,8 @@
 from groupy.gconv.tensorflow_gconv.splitgconv2d import gconv2d_util
-from keras import backend as K
-from keras.engine import InputSpec
-from keras.layers import BatchNormalization
-from keras.utils import get_custom_objects
+from tensorflow.keras import backend as K
+from tensorflow.keras.layers import InputSpec
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.utils import get_custom_objects
 
 
 class GBatchNorm(BatchNormalization):
@@ -13,6 +13,16 @@ class GBatchNorm(BatchNormalization):
         self.h = h
         if axis != -1:
             raise ValueError('Assumes 2D input with channels as last dimension.')
+
+        if self.h == 'C4':
+            self.n = 4
+        elif self.h == 'D4':
+            self.n = 8
+        elif self.h == 'Z2':
+            self.n = 1
+        else:
+            raise ValueError('Wrong h: %s' % self.h)
+
         super(GBatchNorm, self).__init__(axis=axis, momentum=momentum, epsilon=epsilon, center=center, scale=scale,
                                          beta_initializer=beta_initializer, gamma_initializer=gamma_initializer,
                                          moving_mean_initializer=moving_mean_initializer,
@@ -40,56 +50,51 @@ class GBatchNorm(BatchNormalization):
             dim //= 8
         shape = (dim,)
 
-        if self.scale:
-            self.gamma = self.add_weight(shape=shape,
+
+        self.gamma = self.add_weight(shape=shape,
                                          name='gamma',
                                          initializer=self.gamma_initializer,
                                          regularizer=self.gamma_regularizer,
-                                         constraint=self.gamma_constraint)
-        else:
-            self.gamma = None
-        if self.center:
-            self.beta = self.add_weight(shape=shape,
+                                         constraint=self.gamma_constraint,
+                                         trainable=self.scale)
+
+        self.beta = self.add_weight(shape=shape,
                                         name='beta',
                                         initializer=self.beta_initializer,
                                         regularizer=self.beta_regularizer,
-                                        constraint=self.beta_constraint)
-        else:
-            self.beta = None
+                                        constraint=self.beta_constraint,
+                                        trainable=self.center)
+
         self.moving_mean = self.add_weight(
             shape=shape,
             name='moving_mean',
             initializer=self.moving_mean_initializer,
             trainable=False)
+
         self.moving_variance = self.add_weight(
             shape=shape,
             name='moving_variance',
             initializer=self.moving_variance_initializer,
             trainable=False)
 
-        def repeat(w):
-            n = 1
-            if self.h == 'C4':
-                n *= 4
-            elif self.h == 'D4':
-                n *= 8
-            elif self.h == 'Z2':
-                n *= 1
-            else:
-                raise ValueError('Wrong h: %s' % self.h)
-
-            return K.reshape(
-                K.tile(
-                    K.expand_dims(w, -1), [1, n]), [-1])
-
-        self.repeated_gamma = repeat(self.gamma)
-        self.repeated_beta = repeat(self.beta)
-
-        self.repeated_moving_mean = repeat(self.moving_mean)
-        self.repeated_moving_variance = repeat(self.moving_variance)
         self.built = True
 
     def call(self, inputs, training=None):
+        # These were moved here from build() because tf2 eager was not
+        # tracking gradients:
+        repeated_gamma = K.reshape(
+            K.tile(K.expand_dims(self.gamma, -1), [1, self.n]), [-1],
+        )
+        repeated_beta = K.reshape(
+            K.tile(K.expand_dims(self.beta, -1), [1, self.n]), [-1],
+        )
+
+        repeated_moving_mean = K.reshape(
+            K.tile(K.expand_dims(self.moving_mean, -1), [1, self.n]), [-1],
+        )
+        repeated_moving_variance = K.reshape(
+            K.tile(K.expand_dims(self.moving_variance, -1), [1, self.n]), [-1],
+        )
 
         def unrepeat(w):
             n = 1
@@ -119,19 +124,15 @@ class GBatchNorm(BatchNormalization):
         def normalize_inference():
             if needs_broadcasting:
                 # In this case we must explicitly broadcast all parameters.
-                broadcast_moving_mean = K.reshape(self.repeated_moving_mean,
+                broadcast_moving_mean = K.reshape(repeated_moving_mean,
                                                   broadcast_shape)
-                broadcast_moving_variance = K.reshape(self.repeated_moving_variance,
+                broadcast_moving_variance = K.reshape(repeated_moving_variance,
                                                       broadcast_shape)
-                if self.center:
-                    broadcast_beta = K.reshape(self.repeated_beta, broadcast_shape)
-                else:
-                    broadcast_beta = None
-                if self.scale:
-                    broadcast_gamma = K.reshape(self.repeated_gamma,
-                                                broadcast_shape)
-                else:
-                    broadcast_gamma = None
+
+                broadcast_beta = K.reshape(repeated_beta, broadcast_shape)
+ 
+                broadcast_gamma = K.reshape(repeated_gamma, broadcast_shape)
+
                 return K.batch_normalization(
                     inputs,
                     broadcast_moving_mean,
@@ -142,19 +143,42 @@ class GBatchNorm(BatchNormalization):
             else:
                 return K.batch_normalization(
                     inputs,
-                    self.repeated_moving_mean,
-                    self.repeated_moving_variance,
-                    self.repeated_beta,
-                    self.repeated_gamma,
+                    repeated_moving_mean,
+                    repeated_moving_variance,
+                    repeated_beta,
+                    repeated_gamma,
                     epsilon=self.epsilon)
 
+
+        def _get_training_value(training, trainable_flag):
+            """
+            Return a flag indicating whether a layer should be called in training
+            or inference mode.
+            Modified from https://git.io/JUGHX
+            training: the setting used when layer is called for inference.
+            trainable: flag indicating whether the layer is trainable.
+            """
+            if training is None:
+                training = K.learning_phase()
+
+            if isinstance(training, int):
+                training = bool(training)
+
+            # If layer not trainable, override value passed from model.
+            if trainable_flag is False:
+                training = False
+
+            return training
+
+
         # If the learning phase is *static* and set to inference:
-        if training in {0, False}:
+        training_val = _get_training_value(training, self.trainable)
+        if training_val is False:
             return normalize_inference()
 
         # If the learning is either dynamic, or set to training:
         normed_training, mean, variance = K.normalize_batch_in_training(
-            inputs, self.repeated_gamma, self.repeated_beta, reduction_axes,
+            inputs, repeated_gamma, repeated_beta, reduction_axes,
             epsilon=self.epsilon)
 
         if K.backend() != 'cntk':
@@ -184,3 +208,4 @@ class GBatchNorm(BatchNormalization):
 
 
 get_custom_objects().update({'GBatchNorm': GBatchNorm})
+

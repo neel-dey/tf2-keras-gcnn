@@ -1,8 +1,7 @@
-import keras.backend as K
+import tensorflow.keras.backend as K
 from groupy.gconv.tensorflow_gconv.splitgconv2d import gconv2d_util
-from keras.engine import InputSpec
-from keras.layers.convolutional import Conv2D, Conv2DTranspose
-from keras.utils import get_custom_objects
+from tensorflow.keras.layers import InputSpec, Conv2D, Conv2DTranspose
+from tensorflow.keras.utils import get_custom_objects
 from keras_gcnn.transform_filter import transform_filter_2d_nhwc
 
 
@@ -158,3 +157,4 @@ def gconv2d(x, kernel, gconv_indices, gconv_shape_info, strides=(1, 1), padding=
 
 
 get_custom_objects().update({'GConv2D': GConv2D})
+
