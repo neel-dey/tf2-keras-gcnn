@@ -8,7 +8,7 @@ Currently, the primary functionality including the `GConv2D`, `GBatchNorm`, and 
 
 If there's interest in these, please open an issue.
 
-To install, run `pip install git+https://github.com/neel-dey/tf2-GrouPy#egg=GrouPy -e git+https://github.com/neel-dey/tf-keras-gcnn.git#egg=keras_gcnn`.
+To install, run `pip install git+https://github.com/neel-dey/tf2-GrouPy#egg=GrouPy -e git+https://github.com/neel-dey/tf2-keras-gcnn.git#egg=keras_gcnn`.
 
 Original README follows below,
 
