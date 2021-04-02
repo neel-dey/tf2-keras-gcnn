@@ -1,6 +1,13 @@
 ## Tensorflow 2 / tf.keras port for keras-gcnn
 A tf.keras port of keras-gcnn, a library for `p4` and `p4m`-equivariant networks. Includes some minor bug fixes for group batch normalization (correctly handling train/test modes, making affine scaling and shifting optional). Depends on [tf2-GrouPy](https://github.com/neel-dey/tf2-GrouPy).
 
+To install, run:
+
+```bash
+conda install tensorflow-gpu=2.2.0  # or your preferred way of installing tf2
+pip install git+https://github.com/neel-dey/tf2-GrouPy#egg=GrouPy -e git+https://github.com/neel-dey/tf2-keras-gcnn.git#egg=keras_gcnn
+```
+
 Currently, the primary functionality including the `GConv2D`, `GBatchNorm`, and `GroupPool` layers work. The remaining low-priority tasks include:
 1. Transposed GConv support. (side note: you could just use UpSampling layers instead)
 2. Updating the tests.
@@ -8,7 +15,51 @@ Currently, the primary functionality including the `GConv2D`, `GBatchNorm`, and 
 
 If there's interest in these, please open an issue.
 
-To install, run `pip install git+https://github.com/neel-dey/tf2-GrouPy#egg=GrouPy -e git+https://github.com/neel-dey/tf2-keras-gcnn.git#egg=keras_gcnn`.
+Minimal working example with an equivariance-test:
+
+```python
+import numpy as np
+import tensorflow as tf
+
+from tensorflow.keras import Model
+from tensorflow.keras.layers import Input, Activation, MaxPooling2D
+
+from keras_gcnn.layers import GConv2D, GBatchNorm, GroupPool
+
+# Define model with functional API:
+ip = Input(shape=(128, 128, 3))
+x = GConv2D(8, h_input='Z2', h_output='D4', kernel_size=5, padding='same')(ip)
+x = Activation('relu')(x)
+x = MaxPooling2D()(x)
+
+x = GConv2D(16, h_input='D4', h_output='D4', kernel_size=3, padding='same')(x)
+x = GBatchNorm(h='D4')(x)
+x = Activation('relu')(x)
+x = MaxPooling2D()(x)
+
+x = GConv2D(32, h_input='D4', h_output='D4', kernel_size=3, padding='same')(x)
+x = GBatchNorm(h='D4')(x)
+x = Activation('relu')(x)
+x = MaxPooling2D()(x)
+
+x = GConv2D(1, h_input='D4', h_output='D4', kernel_size=3, padding='same')(x)
+x = GroupPool('D4')(x)
+model = Model(inputs=ip, outputs=x)
+
+# Generate random test image:
+img = np.random.randn(128, 128, 3)
+
+# Run a forward pass through the model with the image and transformed images:
+res = model.predict(
+    np.stack([img, np.rot90(img), np.rot90(np.fliplr(img), 2)]),
+    batch_size=1,
+)
+
+# Test that activations are the same:
+assert np.allclose(res[0], np.rot90(res[1], 3), rtol=1e-5, atol=1e-3)
+assert np.allclose(res[0], np.flipud(res[2]), rtol=1e-5, atol=1e-3)
+```
+
 
 Original README follows below,
 
